@@ -82,6 +82,7 @@ export interface AppSettings {
   defaultQuality: number
   autoRenameSEO: boolean
   stripExif: boolean
+  maxBatchFiles: number
   windowBounds: { x: number; y: number; width: number; height: number }
   watermarkOptions?: WatermarkOptions
   seoSettings?: SeoSettings

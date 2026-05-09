@@ -22,7 +22,7 @@ function slugify(text: string): string {
     .replace(/đ/g, 'd')
     .replace(/[^a-z0-9\s-]/g, '')
     .trim()
-    .replace(/\s+/g, '-')
+    .replace(/[\s_]+/g, '-')
     .replace(/-+/g, '-')
 }
 

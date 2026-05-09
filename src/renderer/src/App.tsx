@@ -38,6 +38,7 @@ export default function App() {
   const [concurrentThreads, setConcurrentThreads] = useState(4)
   const [hardwareAcceleration, setHardwareAcceleration] = useState(true)
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('light')
+  const [maxBatchFiles, setMaxBatchFiles] = useState(20)
   // Stats state
   const [statsHistory, setStatsHistory] = useState<StatsRecord[]>([])
   const [wmOptions, setWmOptions] = useState<WatermarkOptions>({
@@ -68,6 +69,7 @@ export default function App() {
       setConcurrentThreads(s.concurrentThreads ?? 4)
       setHardwareAcceleration(s.hardwareAcceleration ?? true)
       setTheme(s.theme ?? 'light')
+      setMaxBatchFiles(s.maxBatchFiles ?? 20)
       if (s.statsHistory) setStatsHistory(s.statsHistory)
     }).catch(() => {})
   }, [])
@@ -82,6 +84,7 @@ export default function App() {
   useEffect(() => { window.electronAPI?.setSetting('concurrentThreads', concurrentThreads) }, [concurrentThreads])
   useEffect(() => { window.electronAPI?.setSetting('hardwareAcceleration', hardwareAcceleration) }, [hardwareAcceleration])
   useEffect(() => { window.electronAPI?.setSetting('theme', theme) }, [theme])
+  useEffect(() => { window.electronAPI?.setSetting('maxBatchFiles', maxBatchFiles) }, [maxBatchFiles])
   // Reload stats when switching to stats tab
   useEffect(() => {
     if (tab === 'stats') {
@@ -116,13 +119,13 @@ export default function App() {
     setUploadError(null)
     setFiles((prev) => {
       const combined = [...prev, ...incoming]
-      if (combined.length > 20) {
-        setUploadError('Tối đa 20 ảnh mỗi batch. Danh sách đã được cắt.')
-        return combined.slice(0, 20)
+      if (combined.length > maxBatchFiles) {
+        setUploadError(`Tối đa ${maxBatchFiles} ảnh mỗi batch. Danh sách đã được cắt.`)
+        return combined.slice(0, maxBatchFiles)
       }
       return combined
     })
-  }, [])
+  }, [maxBatchFiles])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -274,7 +277,7 @@ export default function App() {
                   <div className="bg-indigo-100 p-3.5 rounded-full mb-3">
                     <UploadCloud className="w-8 h-8 text-indigo-600" />
                   </div>
-                  <p className="font-bold text-slate-700 mb-1">Kéo thả tối đa 20 ảnh vào đây</p>
+                  <p className="font-bold text-slate-700 mb-1">Kéo thả tối đa {maxBatchFiles} ảnh vào đây</p>
                   <p className="text-slate-500 text-sm mb-3">hoặc click để chọn file</p>
                   <div className="flex gap-1.5">
                     {['JPEG', 'PNG', 'WebP', 'AVIF'].map((f) => (
@@ -289,7 +292,7 @@ export default function App() {
                     <div className="px-4 py-2.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 shrink-0">
                       <span className="font-semibold text-sm text-slate-700 flex items-center gap-2">
                         Hàng chờ
-                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs">{files.length}/20</span>
+                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs">{files.length}/{maxBatchFiles}</span>
                         {doneCount > 0 && <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">✓ {doneCount}</span>}
                       </span>
                       <button onClick={clearAll} className="text-xs text-red-500 hover:text-red-700 font-medium">Xóa tất cả</button>
@@ -485,7 +488,7 @@ export default function App() {
         )}
 
         {/* WATERMARK TAB */}
-        {tab === 'watermark' && <WatermarkTab wmOptions={wmOptions} setWmOptions={setWmOptions} />}
+        {tab === 'watermark' && <WatermarkTab wmOptions={wmOptions} setWmOptions={setWmOptions} maxBatchFiles={maxBatchFiles} />}
 
         {/* SEO TAB */}
         {tab === 'seo' && <SeoTab seo={seoSettings} setSeo={setSeoSettings} />}
@@ -624,6 +627,32 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Giới hạn batch */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-5 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+                  <Layers className="w-5 h-5 text-indigo-600" />
+                  <h3 className="font-bold text-slate-800">Giới hạn tải lên mỗi batch</h3>
+                </div>
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-bold text-slate-700">Số ảnh tối đa mỗi lần tải lên</label>
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">{maxBatchFiles} ảnh</span>
+                  </div>
+                  <input
+                    type="range" min="10" max="500" step="10" value={maxBatchFiles}
+                    onChange={e => setMaxBatchFiles(Number(e.target.value))}
+                    className="w-full accent-indigo-600 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                    <span>10</span><span>250</span><span>500</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2 flex items-start gap-1">
+                    <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    Tăng giới hạn cho phép xử lý lô lớn hơn. Mặc định 20 ảnh/batch.
+                  </p>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
@@ -647,7 +676,7 @@ const POSITIONS: { id: WatermarkPosition; label: string }[] = [
   { id: 'bottom-right',  label: '↘' },
 ]
 
-function WatermarkTab({ wmOptions, setWmOptions }: { wmOptions: WatermarkOptions, setWmOptions: React.Dispatch<React.SetStateAction<WatermarkOptions>> }) {
+function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: WatermarkOptions, setWmOptions: React.Dispatch<React.SetStateAction<WatermarkOptions>>, maxBatchFiles: number }) {
   const [files, setFiles] = useState<WmFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -693,9 +722,9 @@ function WatermarkTab({ wmOptions, setWmOptions }: { wmOptions: WatermarkOptions
   const addFiles = useCallback((incoming: WmFile[]) => {
     setFiles(prev => {
       const combined = [...prev, ...incoming]
-      return combined.slice(0, 20)
+      return combined.slice(0, maxBatchFiles)
     })
-  }, [])
+  }, [maxBatchFiles])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setIsDragging(false)
@@ -785,7 +814,7 @@ function WatermarkTab({ wmOptions, setWmOptions }: { wmOptions: WatermarkOptions
             <Stamp className="w-8 h-8 text-violet-600" />
           </div>
           <p className="font-bold text-slate-700 mb-1">Kéo thả ảnh cần đóng watermark</p>
-          <p className="text-slate-500 text-sm">hoặc click để chọn file (tối đa 20)</p>
+          <p className="text-slate-500 text-sm">hoặc click để chọn file (tối đa {maxBatchFiles})</p>
         </div>
 
         {/* Queue */}
@@ -794,7 +823,7 @@ function WatermarkTab({ wmOptions, setWmOptions }: { wmOptions: WatermarkOptions
             <div className="px-4 py-2.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 shrink-0">
               <span className="font-semibold text-sm text-slate-700 flex items-center gap-2">
                 Hàng chờ
-                <span className="bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full text-xs">{files.length}/20</span>
+                <span className="bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full text-xs">{files.length}/{maxBatchFiles}</span>
                 {doneCount > 0 && <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs">✓ {doneCount}</span>}
               </span>
               <button onClick={clearAll} className="text-xs text-red-500 hover:text-red-700 font-medium">Xóa tất cả</button>

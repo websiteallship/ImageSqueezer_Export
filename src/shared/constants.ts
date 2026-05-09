@@ -47,7 +47,6 @@ export const DEFAULT_SETTINGS = {
     stripExif: true,
     embedIptc: false,
     iptcAuthor: ''
-  }
+  },
+  maxBatchFiles: 20
 }
-
-export const MAX_BATCH_FILES = 20
