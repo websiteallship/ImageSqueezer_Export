@@ -141,11 +141,22 @@ export async function getWatermarkComposites(
       : (opts.logoWidth ?? Math.floor(imgW * 0.2))
     const opacity = opts.logoOpacity ?? 0.7
 
-    // Resize logo + apply opacity via linear blend
-    const logoBuf = await sharp(opts.logoPath)
+    // Resize logo + apply opacity by multiplying alpha channel only (not RGB)
+    const { data: rawData, info: rawInfo } = await sharp(opts.logoPath)
       .resize({ width: targetWidth, fit: 'inside' })
       .ensureAlpha()
-      .linear(opacity, 0) // multiply alpha channel
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+
+    // Multiply only the alpha byte (index 3) of every RGBA pixel
+    for (let i = 3; i < rawData.length; i += 4) {
+      rawData[i] = Math.round(rawData[i] * opacity)
+    }
+
+    const logoBuf = await sharp(rawData, {
+      raw: { width: rawInfo.width, height: rawInfo.height, channels: 4 },
+    })
+      .png()
       .toBuffer()
 
     const logoMeta = await sharp(logoBuf).metadata()

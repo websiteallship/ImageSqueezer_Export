@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { formatBytes } from './utils'
 import SeoTab, { DEFAULT_SEO_SETTINGS } from './SeoTab'
-import type { QueueFile, OutputFormat, CompressOptions, WatermarkOptions, WatermarkPosition, WatermarkProgress, SeoSettings, StatsRecord } from '@shared/types'
+import type { QueueFile, OutputFormat, CompressOptions, WatermarkOptions, WatermarkPreset, WatermarkPosition, WatermarkProgress, SeoSettings, StatsRecord } from '@shared/types'
 
 const NAV = [
   { id: 'compress', icon: UploadCloud, label: 'Nén Ảnh' },
@@ -41,6 +41,7 @@ export default function App() {
   const [maxBatchFiles, setMaxBatchFiles] = useState(20)
   // Stats state
   const [statsHistory, setStatsHistory] = useState<StatsRecord[]>([])
+  const [wmPresets, setWmPresets] = useState<WatermarkPreset[]>([])
   const [wmOptions, setWmOptions] = useState<WatermarkOptions>({
     mode: 'text',
     text: '© ImageSqueezer',
@@ -68,6 +69,7 @@ export default function App() {
       setStripExif(s.stripExif)
       setOutputDir(s.outputDir)
       if (s.watermarkOptions) setWmOptions(s.watermarkOptions)
+      if (s.watermarkPresets) setWmPresets(s.watermarkPresets)
       if (s.seoSettings) setSeoSettings(s.seoSettings)
       setAskOutputDir(s.askOutputDir ?? false)
       setConcurrentThreads(s.concurrentThreads ?? 4)
@@ -83,6 +85,7 @@ export default function App() {
     if (outputDir) window.electronAPI?.setSetting('outputDir', outputDir)
   }, [outputDir])
   useEffect(() => { window.electronAPI?.setSetting('watermarkOptions', wmOptions) }, [wmOptions])
+  useEffect(() => { window.electronAPI?.setSetting('watermarkPresets', wmPresets) }, [wmPresets])
   useEffect(() => { window.electronAPI?.setSetting('seoSettings', seoSettings) }, [seoSettings])
   useEffect(() => { window.electronAPI?.setSetting('askOutputDir', askOutputDir) }, [askOutputDir])
   useEffect(() => { window.electronAPI?.setSetting('concurrentThreads', concurrentThreads) }, [concurrentThreads])
@@ -501,7 +504,7 @@ export default function App() {
         )}
 
         {/* WATERMARK TAB */}
-        {tab === 'watermark' && <WatermarkTab wmOptions={wmOptions} setWmOptions={setWmOptions} maxBatchFiles={maxBatchFiles} />}
+        {tab === 'watermark' && <WatermarkTab wmOptions={wmOptions} setWmOptions={setWmOptions} wmPresets={wmPresets} setWmPresets={setWmPresets} maxBatchFiles={maxBatchFiles} />}
 
         {/* SEO TAB */}
         {tab === 'seo' && <SeoTab seo={seoSettings} setSeo={setSeoSettings} />}
@@ -702,11 +705,21 @@ const POSITIONS: { id: WatermarkPosition; label: string }[] = [
   { id: 'bottom-right',  label: '↘' },
 ]
 
-function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: WatermarkOptions, setWmOptions: React.Dispatch<React.SetStateAction<WatermarkOptions>>, maxBatchFiles: number }) {
+function WatermarkTab({ wmOptions, setWmOptions, wmPresets, setWmPresets, maxBatchFiles }: {
+  wmOptions: WatermarkOptions,
+  setWmOptions: React.Dispatch<React.SetStateAction<WatermarkOptions>>,
+  wmPresets: WatermarkPreset[],
+  setWmPresets: React.Dispatch<React.SetStateAction<WatermarkPreset[]>>,
+  maxBatchFiles: number
+}) {
   const [files, setFiles] = useState<WmFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [outputDir, setOutputDir] = useState('')
+  // Preset state
+  const [presetName, setPresetName] = useState('')
+  const [showPresetPanel, setShowPresetPanel] = useState(false)
+  const [brokenLogoPresetId, setBrokenLogoPresetId] = useState<string | null>(null)
 
   // Watermark options derived from props
   const { mode, text: wmText, fontSize, fontColor, fontOpacity, logoPath, logoWidth, logoOpacity, position, sizeMode, sizePercent, margin, marginX, marginY, tile } = wmOptions
@@ -774,13 +787,13 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
   const openFiles = async () => {
     const r = await window.electronAPI?.openFiles()
     if (!r || r.canceled) return
-    const newFiles: WmFile[] = await Promise.all(
-      r.filePaths.map(async (p, i) => {
-        const name = p.split(/[\\/]/).pop() ?? p
-        const stat = await window.electronAPI?.getFileStat(p).catch(() => ({ size: 0 }))
-        return { id: `wm-${Date.now()}-${i}`, name, path: p, size: stat?.size ?? 0, type: 'image/jpeg', status: 'pending' as const, progress: 0 }
-      })
-    )
+    const newFiles: WmFile[] = []
+    for (let i = 0; i < r.filePaths.length; i++) {
+      const p = r.filePaths[i]
+      const name = p.split(/[\\/]/).pop() ?? p
+      const stat = await window.electronAPI?.getFileStat(p)?.catch(() => ({ size: 0 })) ?? { size: 0 }
+      newFiles.push({ id: `wm-${Date.now()}-${i}`, name, path: p, size: stat?.size ?? 0, type: 'image/jpeg', status: 'pending' as const, progress: 0 })
+    }
     addFiles(newFiles)
   }
 
@@ -805,7 +818,11 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
       logoWidth,
       logoOpacity,
       position,
+      sizeMode,
+      sizePercent,
       margin,
+      marginX,
+      marginY,
       tile,
     }
 
@@ -825,6 +842,52 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
   const cancelWatermark = () => { window.electronAPI?.cancelWatermark(); setIsProcessing(false) }
   const removeFile = (id: string) => setFiles(p => p.filter(f => f.id !== id))
   const clearAll = () => setFiles([])
+
+  // ── Preset helpers ──────────────────────────────────────────────────────────
+  const savePreset = () => {
+    const name = presetName.trim()
+    if (!name) return
+    const preset: WatermarkPreset = {
+      id: `preset-${Date.now()}`,
+      name,
+      createdAt: Date.now(),
+      options: { ...wmOptions },
+    }
+    setWmPresets(p => [preset, ...p])
+    setPresetName('')
+  }
+
+  const loadPreset = async (preset: WatermarkPreset) => {
+    // If logo mode, verify file exists
+    if (preset.options.mode === 'logo' && preset.options.logoPath) {
+      const stat = await window.electronAPI?.getFileStat(preset.options.logoPath).catch(() => null)
+      if (!stat || stat.size === 0) {
+        setBrokenLogoPresetId(preset.id)
+        return
+      }
+    }
+    setWmOptions({ ...preset.options })
+    setShowPresetPanel(false)
+  }
+
+  const repickLogo = async (presetId: string) => {
+    const r = await window.electronAPI?.openImageFile()
+    if (!r || r.canceled || !r.filePaths[0]) return
+    const newPath = r.filePaths[0]
+    setWmPresets(prev => prev.map(p =>
+      p.id === presetId ? { ...p, options: { ...p.options, logoPath: newPath } } : p
+    ))
+    // Also apply immediately
+    const preset = wmPresets.find(p => p.id === presetId)
+    if (preset) setWmOptions({ ...preset.options, logoPath: newPath })
+    setBrokenLogoPresetId(null)
+    setShowPresetPanel(false)
+  }
+
+  const deletePreset = (id: string) => {
+    setWmPresets(p => p.filter(pr => pr.id !== id))
+    if (brokenLogoPresetId === id) setBrokenLogoPresetId(null)
+  }
 
   return (
     <div className="flex-1 flex overflow-hidden">
@@ -907,11 +970,116 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
 
       {/* Right: config panel */}
       <div className="w-72 border-l border-slate-200 bg-white flex flex-col shrink-0">
-        <div className="p-4 border-b border-slate-100">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="font-semibold text-slate-800 flex items-center gap-2 text-sm">
             <Layers className="w-4 h-4 text-violet-600" /> Cài đặt Watermark
           </h3>
+          <button
+            onClick={() => setShowPresetPanel(v => !v)}
+            title="Quản lý preset"
+            className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg border transition-all ${
+              showPresetPanel
+                ? 'bg-violet-600 text-white border-violet-600'
+                : 'border-slate-200 text-slate-500 hover:border-violet-400 hover:text-violet-600'
+            }`}
+          >
+            <RefreshCw className="w-3 h-3" /> Preset
+          </button>
         </div>
+
+        {/* PRESET PANEL */}
+        {showPresetPanel && (
+          <div className="border-b border-slate-100 bg-slate-50/60 p-3 space-y-3">
+            {/* Save current as preset */}
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Lưu cài đặt hiện tại</p>
+              <div className="flex gap-2">
+                <input
+                  value={presetName}
+                  onChange={e => setPresetName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && savePreset()}
+                  placeholder="Tên preset..."
+                  className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-violet-400"
+                />
+                <button
+                  onClick={savePreset}
+                  disabled={!presetName.trim()}
+                  className="shrink-0 bg-violet-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors hover:bg-violet-700"
+                >
+                  Lưu
+                </button>
+              </div>
+            </div>
+
+            {/* Preset list */}
+            {wmPresets.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Preset đã lưu ({wmPresets.length})</p>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-thin">
+                  {wmPresets.map(preset => {
+                    const isBroken = brokenLogoPresetId === preset.id
+                    return (
+                      <div
+                        key={preset.id}
+                        className={`rounded-lg border p-2 transition-all ${
+                          isBroken
+                            ? 'border-red-200 bg-red-50'
+                            : 'border-slate-200 bg-white hover:border-violet-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-slate-700 truncate">{preset.name}</p>
+                            <p className="text-[10px] text-slate-400">
+                              {preset.options.mode === 'text' ? '✏️ Chữ' : '🖼️ Logo'}
+                              {' · '}
+                              {preset.options.position}
+                            </p>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            {!isBroken && (
+                              <button
+                                onClick={() => loadPreset(preset)}
+                                className="text-[10px] font-bold text-violet-600 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 px-2 py-1 rounded-md transition-colors"
+                              >
+                                Dùng
+                              </button>
+                            )}
+                            <button
+                              onClick={() => deletePreset(preset.id)}
+                              className="text-red-400 hover:text-red-600 p-1 rounded-md hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Broken logo warning */}
+                        {isBroken && (
+                          <div className="mt-1.5">
+                            <p className="text-[10px] text-red-600 flex items-center gap-1 mb-1">
+                              <AlertCircle className="w-3 h-3" /> Logo không còn tồn tại
+                            </p>
+                            <button
+                              onClick={() => repickLogo(preset.id)}
+                              className="w-full text-[10px] font-bold text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded-md transition-colors flex items-center justify-center gap-1"
+                            >
+                              <FolderOpen className="w-3 h-3" /> Chọn lại đường dẫn mới
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {wmPresets.length === 0 && (
+              <p className="text-[11px] text-slate-400 text-center py-2">Chưa có preset nào. Cấu hình xong rồi lưu!</p>
+            )}
+          </div>
+        )}
 
         <div className="p-4 space-y-5 overflow-y-auto flex-1 scrollbar-thin">
           {/* Mode switch */}
@@ -959,7 +1127,7 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="text-xs font-bold text-slate-700">Độ trong suốt</label>
-                  <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{Math.round(fontOpacity * 100)}%</span>
+                  <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{Math.round((fontOpacity ?? 0.6) * 100)}%</span>
                 </div>
                 <input type="range" min="0.1" max="1" step="0.05" value={fontOpacity}
                   onChange={e => setFontOpacity(Number(e.target.value))}
@@ -985,7 +1153,7 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="text-xs font-bold text-slate-700">Độ trong suốt</label>
-                  <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{Math.round(logoOpacity * 100)}%</span>
+                  <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{Math.round((logoOpacity ?? 0.7) * 100)}%</span>
                 </div>
                 <input type="range" min="0.1" max="1" step="0.05" value={logoOpacity}
                   onChange={e => setLogoOpacity(Number(e.target.value))}

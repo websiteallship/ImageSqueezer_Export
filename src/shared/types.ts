@@ -85,6 +85,7 @@ export interface AppSettings {
   maxBatchFiles: number
   windowBounds: { x: number; y: number; width: number; height: number }
   watermarkOptions?: WatermarkOptions
+  watermarkPresets?: WatermarkPreset[]
   seoSettings?: SeoSettings
   statsHistory?: StatsRecord[]
 }
@@ -100,6 +101,13 @@ export type WatermarkPosition =
   | 'bottom-left' | 'bottom-center' | 'bottom-right'
 
 export type WatermarkMode = 'text' | 'logo'
+
+export interface WatermarkPreset {
+  id: string
+  name: string
+  createdAt: number
+  options: WatermarkOptions
+}
 
 export interface WatermarkOptions {
   mode: WatermarkMode
