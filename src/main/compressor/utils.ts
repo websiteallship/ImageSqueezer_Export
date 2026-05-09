@@ -7,9 +7,9 @@ export function toSlug(str: string): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // strip diacritics
     .replace(/đ/gi, 'd')
-    .replace(/[^a-z0-9\s-]/gi, '')
-    .trim()
+    .replace(/[_\s]+/g, '-')         // underscore/space → hyphen BEFORE stripping
+    .replace(/[^a-z0-9-]/gi, '')     // strip remaining special chars
     .toLowerCase()
-    .replace(/[\s_]+/g, '-')
-    .replace(/-+/g, '-')
+    .replace(/-+/g, '-')             // collapse multiple hyphens
+    .replace(/^-+|-+$/g, '')         // trim leading/trailing hyphens
 }

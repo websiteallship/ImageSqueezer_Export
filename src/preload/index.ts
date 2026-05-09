@@ -20,7 +20,8 @@ const INVOKE_CHANNELS = [
   IPC.SETTINGS_GET,
   IPC.SETTINGS_SET,
   IPC.STATS_GET,
-  'shell:open-folder'
+  'shell:open-folder',
+  'fs:stat'
 ] as const
 
 type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
@@ -82,4 +83,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getStats: () =>
     invoke<import('@shared/types').StatsRecord[]>(IPC.STATS_GET),
+
+  getFileStat: (filePath: string) =>
+    invoke<{ size: number }>('fs:stat', filePath),
 })

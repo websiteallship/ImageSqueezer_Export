@@ -1,4 +1,5 @@
 import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
+import fs from 'node:fs'
 import path from 'node:path'
 import { IPC } from '@shared/constants'
 import { getAllSettings, getSetting, setSetting, getStats, addStats } from './store'
@@ -146,6 +147,17 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(IPC.IMAGE_WATERMARK_CANCEL, () => {
     cancelWatermarkBatch()
     return { success: true }
+  })
+
+  // ── FS: get file stat ────────────────────────────────────────────────────
+  ipcMain.handle('fs:stat', (_event, filePath: string) => {
+    if (typeof filePath !== 'string') throw new Error('Invalid path')
+    try {
+      const stat = fs.statSync(filePath)
+      return { size: stat.size }
+    } catch {
+      return { size: 0 }
+    }
   })
 
   // ── SHELL: open output folder ─────────────────────────────────────────────

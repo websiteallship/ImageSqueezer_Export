@@ -26,6 +26,8 @@ declare global {
       onWatermarkProgress: (callback: (progress: WatermarkProgress) => void) => () => void
       // Stats
       getStats: () => Promise<StatsRecord[]>
+      // FS
+      getFileStat: (filePath: string) => Promise<{ size: number }>
     }
   }
 }

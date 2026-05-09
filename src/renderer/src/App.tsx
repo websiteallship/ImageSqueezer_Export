@@ -148,10 +148,13 @@ export default function App() {
   const openFilePicker = async () => {
     const result = await window.electronAPI?.openFiles()
     if (!result || result.canceled || !result.filePaths.length) return
-    const newFiles: QueueFile[] = result.filePaths.map((p: string, i: number) => {
-      const name = p.split(/[\\/]/).pop() ?? p
-      return { id: `${Date.now()}-${i}`, name, path: p, size: 0, type: 'image/jpeg', status: 'pending' as const, progress: 0 }
-    })
+    const newFiles: QueueFile[] = await Promise.all(
+      result.filePaths.map(async (p: string, i: number) => {
+        const name = p.split(/[\\/]/).pop() ?? p
+        const stat = await window.electronAPI?.getFileStat(p).catch(() => ({ size: 0 }))
+        return { id: `${Date.now()}-${i}`, name, path: p, size: stat?.size ?? 0, type: 'image/jpeg', status: 'pending' as const, progress: 0 }
+      })
+    )
     addFiles(newFiles)
   }
 
@@ -301,8 +304,14 @@ export default function App() {
                     <div className="overflow-y-auto flex-1 scrollbar-thin">
                       {files.map((file) => (
                         <div key={file.id} className="group flex items-center px-4 py-2.5 hover:bg-slate-50 border-b border-slate-50 last:border-b-0 transition-colors">
-                          <div className="w-10 h-10 bg-slate-100 rounded-lg mr-3 flex items-center justify-center shrink-0 text-[10px] font-bold text-slate-400 border border-slate-200">
-                            <ImageIcon className="w-4 h-4" />
+                          <div className="w-10 h-10 bg-slate-100 rounded-lg mr-3 flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden">
+                            <img
+                              src={`file:///${file.path.replace(/\\/g, '/')}`}
+                              alt={file.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden') }}
+                            />
+                            <ImageIcon className="w-4 h-4 hidden" />
                           </div>
 
                           <div className="flex-1 min-w-0 pr-3">
@@ -745,10 +754,13 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
   const openFiles = async () => {
     const r = await window.electronAPI?.openFiles()
     if (!r || r.canceled) return
-    const newFiles: WmFile[] = r.filePaths.map((p, i) => {
-      const name = p.split(/[\\/]/).pop() ?? p
-      return { id: `wm-${Date.now()}-${i}`, name, path: p, size: 0, type: 'image/jpeg', status: 'pending' as const, progress: 0 }
-    })
+    const newFiles: WmFile[] = await Promise.all(
+      r.filePaths.map(async (p, i) => {
+        const name = p.split(/[\\/]/).pop() ?? p
+        const stat = await window.electronAPI?.getFileStat(p).catch(() => ({ size: 0 }))
+        return { id: `wm-${Date.now()}-${i}`, name, path: p, size: stat?.size ?? 0, type: 'image/jpeg', status: 'pending' as const, progress: 0 }
+      })
+    )
     addFiles(newFiles)
   }
 
