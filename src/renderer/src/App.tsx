@@ -516,7 +516,20 @@ export default function App() {
           return (
             <div className="flex-1 overflow-y-auto bg-slate-50/50 p-8 scrollbar-thin">
               <div className="max-w-5xl mx-auto">
-                <h3 className="text-xl font-bold text-slate-800 mb-6">Thống kê hiệu năng toàn cục</h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-slate-800">Thống kê hiệu năng toàn cục</h3>
+                  {statsHistory.length > 0 && (
+                    <button
+                      onClick={async () => {
+                        await window.electronAPI?.clearStats()
+                        setStatsHistory([])
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-100 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Xóa lịch sử
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-10"><Download className="w-16 h-16" /></div>

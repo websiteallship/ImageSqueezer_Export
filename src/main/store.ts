@@ -35,3 +35,7 @@ export function addStats(record: StatsRecord): void {
   if (history.length > 100) history.length = 100
   store.set('statsHistory', history)
 }
+
+export function clearStats(): void {
+  store.set('statsHistory', [])
+}

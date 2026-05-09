@@ -2,7 +2,7 @@ import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { IPC } from '@shared/constants'
-import { getAllSettings, getSetting, setSetting, getStats, addStats } from './store'
+import { getAllSettings, getSetting, setSetting, getStats, addStats, clearStats } from './store'
 import { processBatch, cancelBatch } from './compressor/batch'
 import { processWatermarkBatch, cancelWatermarkBatch } from './compressor/watermark-batch'
 import type { CompressRequest, AppSettings, WatermarkRequest } from '@shared/types'
@@ -47,6 +47,12 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   // ── STATS: get history ────────────────────────────────────────────────────
   ipcMain.handle(IPC.STATS_GET, () => {
     return getStats()
+  })
+
+  // ── STATS: clear history ──────────────────────────────────────────────────
+  ipcMain.handle('stats:clear', () => {
+    clearStats()
+    return { success: true }
   })
 
   // ── IMAGE: compress batch ─────────────────────────────────────────────────

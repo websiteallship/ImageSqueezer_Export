@@ -28,6 +28,8 @@ declare global {
       getStats: () => Promise<StatsRecord[]>
       // FS
       getFileStat: (filePath: string) => Promise<{ size: number }>
+      // Stats clear
+      clearStats: () => Promise<{ success: boolean }>
     }
   }
 }

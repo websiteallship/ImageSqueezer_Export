@@ -21,7 +21,8 @@ const INVOKE_CHANNELS = [
   IPC.SETTINGS_SET,
   IPC.STATS_GET,
   'shell:open-folder',
-  'fs:stat'
+  'fs:stat',
+  'stats:clear'
 ] as const
 
 type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
@@ -86,4 +87,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getFileStat: (filePath: string) =>
     invoke<{ size: number }>('fs:stat', filePath),
+
+  clearStats: () =>
+    invoke<{ success: boolean }>('stats:clear'),
 })
