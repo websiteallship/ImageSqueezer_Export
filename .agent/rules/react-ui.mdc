@@ -1,0 +1,39 @@
+---
+description: "Quy tắc thiết kế UI/UX, React patterns, và Tailwind CSS cho ImageSqueezer."
+globs: "src/renderer/**/*.jsx, src/renderer/**/*.tsx, src/renderer/**/*.css"
+---
+
+# Quy tắc React UI & Frontend Component
+
+**Mục đích:** Xây dựng giao diện Desktop mượt mà, tái sử dụng và thống nhất với Tailwind CSS.
+
+## 1. Design System & Tech Stack
+- **Framework**: React.js (JSX/TSX).
+- **Styling**: Tailwind CSS với màu chủ đạo là `indigo-600` (primary), `emerald-500` (success), `amber-500` (warning) và `slate` (gray scale).
+- **Icons**: Sử dụng **`lucide-react`** (Không dùng @radix-ui/react-icons).
+- Giao diện có khu vực sidebar tĩnh bên trái và nội dung chính linh hoạt bên phải.
+
+## 2. Component Design (Zero Fluff)
+- Một component = Một trách nhiệm.
+- Ưu tiên component nhỏ, composition thay vì prop drilling.
+- Đặt tên file `PascalCase.jsx` hoặc `PascalCase.tsx`.
+- Các components giao diện (UI) thuần túy không được dính dáng đến logic IPC, IPC chỉ gọi ở Container (Page) component.
+
+## 3. Quản Lý State (React Patterns)
+- **Local State**: Sử dụng `useState` cho form inputs (quality slider, format picker).
+- **Derived State**: Tính toán trực tiếp khi render thay vì lưu thêm state (ví dụ: `totalSaved = files.reduce(...)`).
+- **Update mảng/object**: Sử dụng functional update: `setFiles(prev => [...prev, ...newFiles])`.
+- Trạng thái xử lý file: Phải tuân theo kiểu `pending` | `processing` | `success` | `error`.
+
+## 4. Trải Nghiệm Người Dùng (UX) & A11y
+- Mọi nút bấm (button) đều phải phản hồi `hover`/`active` (ví dụ: `hover:-translate-y-0.5`).
+- Dropzone phải có trạng thái rõ ràng (thay đổi màu/viền) khi `isDragging`.
+- Giao diện phải xử lý tốt trường hợp không có dữ liệu (Empty state) hoặc đang tải (Loading spinners/Progress bars).
+- Progress bar phải dùng ARIA roles (`role="progressbar"`, `aria-valuenow`).
+
+## 5. Giao Tiếp Main ↔ Renderer
+- Chỉ sử dụng API đã được expose qua `window.electronAPI` (contextBridge).
+- Không được import các API của node.js (`fs`, `path`) vào renderer.
+
+## 6. Tham Khảo
+- Luôn tham khảo implementation mẫu tại: `docs/01-frontend.jsx`

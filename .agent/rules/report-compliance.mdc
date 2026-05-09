@@ -1,0 +1,18 @@
+---
+description: "Quy tắc báo cáo tự động sau khi hoàn thành nhiệm vụ."
+globs: "*"
+---
+
+# Quy Tắc Báo Cáo Sau Nhiệm Vụ
+
+**Mục đích:** Xác nhận việc tuân thủ các chuẩn mực thiết kế và lập trình của dự án.
+
+## 1. Yêu Cầu Bắt Buộc
+Sau khi hoàn thành MỘT nhiệm vụ bất kỳ, bạn LUÔN PHẢI cung cấp báo cáo ngắn gọn về:
+- Các rules đã tuân thủ (từ `.agent/rules/`).
+- Các skills đã sử dụng (từ `.agent/skills/`).
+
+## 2. Định Dạng Báo Cáo
+Phải tuân thủ tiêu chí "Zero Fluff", chỉ dùng 2 dòng ngắn gọn cuối phản hồi:
+- Rules applied: [Danh sách rules]
+- Skills used: [Danh sách skills]

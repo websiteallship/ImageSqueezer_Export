@@ -1,0 +1,39 @@
+---
+description: "Quy tắc xử lý ảnh, nén ảnh bằng Sharp/Imagemin, và chuẩn hóa SEO (Slug, EXIF, Alt text)."
+globs: "src/main/compressor/**/*.ts, docs/**/*.md"
+---
+
+# Quy tắc Nén Ảnh & SEO Optimization
+
+**Mục đích:** Đảm bảo output của ImageSqueezer chuẩn xác về chất lượng (60-80% reduction), chuẩn SEO Web, và an toàn về mặt thông tin cá nhân (EXIF).
+
+## 1. Tiêu Chuẩn Định Dạng Đầu Ra
+- **WebP**: Định dạng ưu tiên cao nhất, `quality: 80`. Phương thức nén cao nhất (`method 6`). Lossless cho logo/icon.
+- **AVIF**: Định dạng nén tốt nhất, `quality: 60` (tương đương WebP 80).
+- **JPEG**: `quality: 82` (ngưỡng vàng cho SEO/PageSpeed), sử dụng MozJPEG. Chroma subsampling: 4:2:0.
+- **PNG**: Sử dụng pngquant (lossy level 2) kết hợp oxipng.
+
+## 2. Chuẩn SEO Naming (Renamer)
+- Bắt buộc dùng ký tự **lowercase**.
+- Loại bỏ toàn bộ dấu tiếng Việt (Unicode → ASCII).
+- Khoảng trắng và ký tự đặc biệt → dấu gạch ngang (`-`).
+- Không được có `--` liên tiếp. Không có `-` ở đầu/cuối chuỗi.
+- Format mẫu: `anh-san-pham-moi-1920x1080.webp`.
+
+## 3. Quản Lý Metadata & EXIF
+- **Xóa (Strip)**: Mặc định XÓA tất cả dữ liệu nhạy cảm hoặc thừa để giảm dung lượng file (GPS, Model Camera, Application/Software details, Thumbnails, DateTimeOriginal).
+- **Giữ lại/Thêm mới (Keep/Add)**:
+  - IPTC Copyright (`Copyright`, `CopyrightNotice`).
+  - Artist / Creator.
+  - ImageDescription (đóng vai trò như Alt Text nhúng).
+
+## 4. Tác Vụ Watermark
+- Hỗ trợ text (Unicode/Tiếng Việt) và logo PNG.
+- Position Neo (Gravity): Chia thành lưới 3x3 (9 vùng). Default = góc dưới cùng bên phải.
+- Watermark phải hỗ trợ batch (hàng loạt).
+
+## 5. Image SEO Best Practices (Để tạo báo cáo)
+- Gợi ý `<picture>` tag HTML chuẩn với `srcset` và `sizes`.
+- Gợi ý lazy loading (`loading="lazy"`) trừ LCP (Largest Contentful Paint) image.
+- Yêu cầu bắt buộc `width` & `height` trong HTML để tránh lỗi CLS.
+- Kích thước file đích phải nhỏ hơn `< 200KB` đối với banner/content và `< 100KB` đối với thumbnail.

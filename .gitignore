@@ -1,0 +1,10 @@
+node_modules
+dist
+out
+.agent/skills-old
+.agent/skills
+.DS_Store
+*.log
+.env
+.vite
+.temp

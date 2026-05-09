@@ -1,0 +1,44 @@
+---
+description: "Quy tắc kiến trúc Electron, IPC, bảo mật, và cấu trúc main/renderer process."
+globs: "src/main/**/*.ts, src/preload/**/*.ts, electron-builder.yml"
+---
+
+# Quy tắc Kiến trúc Electron & Backend
+
+**Mục đích:** Đảm bảo kiến trúc ứng dụng Electron an toàn, hiệu suất cao và chuẩn cấu trúc.
+
+## 1. Bảo Mật (MANDATORY)
+- Mọi BrowserWindow phải có các thiết lập bảo mật gốc:
+  ```typescript
+  {
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  }
+  ```
+- **Không bao giờ** thay đổi `nodeIntegration: true` hay `contextIsolation: false`.
+- Validate tất cả inputs từ renderer vào main process. Không bao giờ tin tưởng mù quáng dữ liệu từ IPC.
+
+## 2. Giao Tiếp IPC (Main ↔ Renderer)
+- Mọi giao tiếp đi qua **preload script** với `contextBridge` và whitelist các kênh hợp lệ.
+- **Không dùng** `ipcRenderer.sendSync()`.
+- Patterns:
+  - `Renderer -> Main` (Request/Response): `ipcRenderer.invoke` → `ipcMain.handle`
+  - `Renderer -> Main` (Fire-and-forget): `ipcRenderer.send` → `ipcMain.on`
+  - `Main -> Renderer` (Push): `webContents.send` → `ipcRenderer.on`
+- Các channel được chuẩn hóa theo định dạng `namespace:action` (vd: `image:compress`, `settings:get`).
+
+## 3. Quản Lý Process & Cấu Trúc
+- **Main Process**: Quản lý window, app lifecycle, file system, và thực thi các tác vụ nặng (như chạy **Sharp** qua worker_threads). Main process **tuyệt đối không** chứa UI logic.
+- **Renderer Process**: Chỉ chịu trách nhiệm hiển thị UI (React). Không chứa logic xử lý file trực tiếp.
+- Các module Node.js native (như Sharp) chỉ chạy trong main process và phải được rebuild đúng ABI (`electron-rebuild`).
+- Thư mục `shared/` chỉ chứa `types.ts`, `constants.ts` (không chứa code thực thi).
+
+## 4. Xử Lý Đồng Thời (Concurrency)
+- Dùng `p-limit` và `worker_threads` cho xử lý lô ảnh. Giới hạn luồng (mặc định 4) để không chiếm hết CPU của máy người dùng.
+
+## 5. Đóng Gói (electron-builder)
+- Cấu hình qua `electron-builder.yml` với `asar: true`, `compression: maximum`.
+- Build output riêng biệt cho `main/`, `preload/` và `renderer/`.
