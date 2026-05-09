@@ -26,7 +26,8 @@ function toGravity(pos: WatermarkPosition): string {
 // ── Offset calculation based on position ─────────────────────────────────────
 function positionToOffset(
   pos: WatermarkPosition,
-  margin: number,
+  marginX: number,
+  marginY: number,
   imgW: number,
   imgH: number,
   wmW: number,
@@ -35,12 +36,12 @@ function positionToOffset(
   let left = 0
   let top = 0
 
-  if (pos.includes('left')) left = margin
-  else if (pos.includes('right')) left = imgW - wmW - margin
+  if (pos.includes('left')) left = marginX
+  else if (pos.includes('right')) left = imgW - wmW - marginX
   else left = Math.floor((imgW - wmW) / 2)
 
-  if (pos.startsWith('top')) top = margin
-  else if (pos.startsWith('bottom')) top = imgH - wmH - margin
+  if (pos.startsWith('top')) top = marginY
+  else if (pos.startsWith('bottom')) top = imgH - wmH - marginY
   else top = Math.floor((imgH - wmH) / 2)
 
   return { left: Math.max(0, left), top: Math.max(0, top) }
@@ -53,7 +54,10 @@ async function buildTextOverlay(
   imgH: number
 ): Promise<{ buffer: Buffer; width: number; height: number }> {
   const text = opts.text ?? 'Watermark'
-  const fontSize = opts.fontSize ?? 36
+  // Resolve font size: percent mode → % of image shorter dimension
+  const fontSize = opts.sizeMode === 'percent'
+    ? Math.round(Math.min(imgW, imgH) * (opts.sizePercent ?? 5) / 100)
+    : (opts.fontSize ?? 36)
   const color = opts.fontColor ?? '#ffffff'
   const opacity = opts.fontOpacity ?? 0.6
   const margin = opts.margin ?? 20
@@ -111,16 +115,19 @@ export async function getWatermarkComposites(
   imgW: number,
   imgH: number
 ): Promise<sharp.OverlayOptions[]> {
-  const margin = opts.margin ?? 20
+  // Resolve per-axis margins (fallback to legacy `margin`)
+  const fallbackMargin = opts.margin ?? 20
+  const marginX = opts.marginX ?? fallbackMargin
+  const marginY = opts.marginY ?? fallbackMargin
   let composites: sharp.OverlayOptions[] = []
 
   if (opts.mode === 'text') {
     const { buffer: textBuf, width: wmW, height: wmH } = await buildTextOverlay(opts, imgW, imgH)
 
     if (opts.tile) {
-      composites = await buildTileInputs(textBuf, wmW, wmH, imgW, imgH, margin)
+      composites = await buildTileInputs(textBuf, wmW, wmH, imgW, imgH, Math.min(marginX, marginY))
     } else {
-      const { left, top } = positionToOffset(opts.position, margin, imgW, imgH, wmW, wmH)
+      const { left, top } = positionToOffset(opts.position, marginX, marginY, imgW, imgH, wmW, wmH)
       composites = [{ input: textBuf, left, top, blend: 'over' }]
     }
   } else {
@@ -128,7 +135,10 @@ export async function getWatermarkComposites(
     if (!opts.logoPath) throw new Error('logoPath is required for logo watermark')
     await fs.access(opts.logoPath)
 
-    const targetWidth = opts.logoWidth ?? Math.floor(imgW * 0.2)
+    // Resolve logo width: percent mode → % of image width
+    const targetWidth = opts.sizeMode === 'percent'
+      ? Math.round(imgW * (opts.sizePercent ?? 15) / 100)
+      : (opts.logoWidth ?? Math.floor(imgW * 0.2))
     const opacity = opts.logoOpacity ?? 0.7
 
     // Resize logo + apply opacity via linear blend
@@ -143,9 +153,9 @@ export async function getWatermarkComposites(
     const wmH = logoMeta.height ?? targetWidth
 
     if (opts.tile) {
-      composites = await buildTileInputs(logoBuf, wmW, wmH, imgW, imgH, margin)
+      composites = await buildTileInputs(logoBuf, wmW, wmH, imgW, imgH, Math.min(marginX, marginY))
     } else {
-      const { left, top } = positionToOffset(opts.position, margin, imgW, imgH, wmW, wmH)
+      const { left, top } = positionToOffset(opts.position, marginX, marginY, imgW, imgH, wmW, wmH)
       composites = [{ input: logoBuf, left, top, blend: 'over' }]
     }
   }

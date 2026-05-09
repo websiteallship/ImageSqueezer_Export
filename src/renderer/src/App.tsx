@@ -51,7 +51,11 @@ export default function App() {
     logoWidth: 200,
     logoOpacity: 0.75,
     position: 'top-right',
+    sizeMode: 'px',
+    sizePercent: 5,
     margin: 20,
+    marginX: 20,
+    marginY: 20,
     tile: false
   })
 
@@ -705,7 +709,7 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
   const [outputDir, setOutputDir] = useState('')
 
   // Watermark options derived from props
-  const { mode, text: wmText, fontSize, fontColor, fontOpacity, logoPath, logoWidth, logoOpacity, position, margin, tile } = wmOptions
+  const { mode, text: wmText, fontSize, fontColor, fontOpacity, logoPath, logoWidth, logoOpacity, position, sizeMode, sizePercent, margin, marginX, marginY, tile } = wmOptions
 
   const setMode = (mode: any) => setWmOptions(p => ({ ...p, mode }))
   const setWmText = (text: string) => setWmOptions(p => ({ ...p, text }))
@@ -716,7 +720,10 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
   const setLogoWidth = (logoWidth: number) => setWmOptions(p => ({ ...p, logoWidth }))
   const setLogoOpacity = (logoOpacity: number) => setWmOptions(p => ({ ...p, logoOpacity }))
   const setPosition = (position: any) => setWmOptions(p => ({ ...p, position }))
-  const setMargin = (margin: number) => setWmOptions(p => ({ ...p, margin }))
+  const setSizeMode = (sizeMode: 'px' | 'percent') => setWmOptions(p => ({ ...p, sizeMode }))
+  const setSizePercent = (sizePercent: number) => setWmOptions(p => ({ ...p, sizePercent }))
+  const setMarginX = (marginX: number) => setWmOptions(p => ({ ...p, marginX }))
+  const setMarginY = (marginY: number) => setWmOptions(p => ({ ...p, marginY }))
   const setTile = (tile: boolean) => setWmOptions(p => ({ ...p, tile }))
 
   const doneCount = files.filter(f => f.status === 'success').length
@@ -856,8 +863,14 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
             <div className="overflow-y-auto flex-1">
               {files.map(file => (
                 <div key={file.id} className="group flex items-center px-4 py-2.5 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors">
-                  <div className="w-9 h-9 bg-slate-100 rounded-lg mr-3 flex items-center justify-center shrink-0 border border-slate-200">
-                    <ImageIcon className="w-4 h-4 text-slate-400" />
+                  <div className="w-9 h-9 bg-slate-100 rounded-lg mr-3 flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden">
+                    <img
+                      src={`file:///${file.path.replace(/\\/g, '/')}`}
+                      alt={file.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden') }}
+                    />
+                    <ImageIcon className="w-4 h-4 text-slate-400 hidden" />
                   </div>
                   <div className="flex-1 min-w-0 pr-3">
                     <p className="text-sm font-medium text-slate-700 truncate">
@@ -933,15 +946,6 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
                   className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-violet-400"
                 />
               </div>
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="text-xs font-bold text-slate-700">Cỡ chữ</label>
-                  <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{fontSize}px</span>
-                </div>
-                <input type="range" min="12" max="120" value={fontSize}
-                  onChange={e => setFontSize(Number(e.target.value))}
-                  className="w-full accent-violet-600 h-1.5 cursor-pointer" />
-              </div>
               <div className="flex gap-3 items-center">
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">Màu chữ</label>
@@ -980,15 +984,6 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
               </div>
               <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <label className="text-xs font-bold text-slate-700">Chiều rộng logo</label>
-                  <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{logoWidth}px</span>
-                </div>
-                <input type="range" min="40" max="600" step="10" value={logoWidth}
-                  onChange={e => setLogoWidth(Number(e.target.value))}
-                  className="w-full accent-violet-600 h-1.5 cursor-pointer" />
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
                   <label className="text-xs font-bold text-slate-700">Độ trong suốt</label>
                   <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{Math.round(logoOpacity * 100)}%</span>
                 </div>
@@ -998,6 +993,62 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
               </div>
             </>
           )}
+
+          <hr className="border-slate-100" />
+
+          {/* Size mode toggle */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-2">Kích thước watermark</label>
+            <div className="grid grid-cols-2 gap-1.5 mb-2">
+              {([['px', 'Cố định (px)'], ['percent', 'Tỷ lệ % ảnh']] as [string, string][]).map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setSizeMode(id as 'px' | 'percent')}
+                  className={`py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                    sizeMode === id
+                      ? 'bg-violet-50 border-violet-600 text-violet-700'
+                      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}
+                >{label}</button>
+              ))}
+            </div>
+            {sizeMode === 'percent' ? (
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-slate-500">Tỷ lệ kích thước</span>
+                  <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{sizePercent ?? 5}%</span>
+                </div>
+                <input type="range" min="1" max="50" step="1" value={sizePercent ?? 5}
+                  onChange={e => setSizePercent(Number(e.target.value))}
+                  className="w-full accent-violet-600 h-1.5 cursor-pointer" />
+                <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                  <span>1% (nhỏ)</span><span>25%</span><span>50% (to)</span>
+                </div>
+              </div>
+            ) : (
+              mode === 'text' ? (
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs text-slate-500">Cỡ chữ cố định</span>
+                    <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{fontSize}px</span>
+                  </div>
+                  <input type="range" min="12" max="200" value={fontSize ?? 36}
+                    onChange={e => setFontSize(Number(e.target.value))}
+                    className="w-full accent-violet-600 h-1.5 cursor-pointer" />
+                </div>
+              ) : (
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs text-slate-500">Chiều rộng logo</span>
+                    <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{logoWidth}px</span>
+                  </div>
+                  <input type="range" min="40" max="800" step="10" value={logoWidth ?? 200}
+                    onChange={e => setLogoWidth(Number(e.target.value))}
+                    className="w-full accent-violet-600 h-1.5 cursor-pointer" />
+                </div>
+              )
+            )}
+          </div>
 
           <hr className="border-slate-100" />
 
@@ -1026,15 +1077,27 @@ function WatermarkTab({ wmOptions, setWmOptions, maxBatchFiles }: { wmOptions: W
             </div>
           </div>
 
-          {/* Margin */}
-          <div>
-            <div className="flex justify-between items-center mb-1.5">
-              <label className="text-xs font-bold text-slate-700">Khoảng cách mép</label>
-              <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{margin}px</span>
+          {/* Margin X / Y */}
+          <div className="space-y-3">
+            <label className="block text-xs font-bold text-slate-700">Độ lùi cạnh</label>
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs text-slate-500">↔ Ngang (trái/phải)</span>
+                <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{marginX ?? margin ?? 20}px</span>
+              </div>
+              <input type="range" min="0" max="200" value={marginX ?? margin ?? 20}
+                onChange={e => setMarginX(Number(e.target.value))}
+                className="w-full accent-violet-600 h-1.5 cursor-pointer" />
             </div>
-            <input type="range" min="0" max="100" value={margin}
-              onChange={e => setMargin(Number(e.target.value))}
-              className="w-full accent-violet-600 h-1.5 cursor-pointer" />
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs text-slate-500">↕ Dọc (trên/dưới)</span>
+                <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded">{marginY ?? margin ?? 20}px</span>
+              </div>
+              <input type="range" min="0" max="200" value={marginY ?? margin ?? 20}
+                onChange={e => setMarginY(Number(e.target.value))}
+                className="w-full accent-violet-600 h-1.5 cursor-pointer" />
+            </div>
           </div>
 
           {/* Tile */}

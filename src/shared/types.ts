@@ -105,17 +105,21 @@ export interface WatermarkOptions {
   mode: WatermarkMode
   // Text watermark
   text?: string
-  fontSize?: number
-  fontColor?: string   // hex e.g. '#ffffff'
-  fontOpacity?: number // 0-1
+  fontSize?: number      // px (when sizeMode='px')
+  fontColor?: string     // hex e.g. '#ffffff'
+  fontOpacity?: number   // 0-1
   // Logo watermark
   logoPath?: string
-  logoWidth?: number   // px
-  logoOpacity?: number // 0-1
+  logoWidth?: number     // px (when sizeMode='px')
+  logoOpacity?: number   // 0-1
   // Common
   position: WatermarkPosition
-  margin?: number      // px offset from edge
-  tile?: boolean       // repeat pattern
+  sizeMode?: 'px' | 'percent'  // 'px' = fixed, 'percent' = % of image width
+  sizePercent?: number          // 1-50, % of image width
+  margin?: number               // px offset from edge (legacy / fallback)
+  marginX?: number              // horizontal margin px (left or right edge)
+  marginY?: number              // vertical margin px (top or bottom edge)
+  tile?: boolean                // repeat pattern
 }
 
 export interface WatermarkRequest {
